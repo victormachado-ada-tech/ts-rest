@@ -1,5 +1,37 @@
+import { initClientNew } from '@ts-rest/core';
+import type { postsApi } from '@ts-rest/example-microservice/util-posts-api';
 import React from 'react';
 import { postsClient } from './main';
+
+const experimentalClient = initClientNew<typeof postsApi>({
+  baseHeaders: {},
+  baseUrl: 'http://localhost:5003',
+});
+
+experimentalClient.getPosts('/posts');
+
+experimentalClient.getPosts('/posts', {
+  skip: 0,
+});
+
+experimentalClient.createPost('/posts', 'POST', {
+  title: 'Hello World!',
+  content: 'This is a post!',
+});
+
+experimentalClient.getPost(`/posts/${123}`);
+
+experimentalClient.updatePostThumbnail(
+  `/posts/${123}/thumbnail`,
+  'POST',
+  {
+    thumbnail: new File([], 'test.png'),
+    data: 'Hey there!',
+  },
+  {
+    contentType: 'multipart/form-data',
+  }
+);
 
 export const App = () => {
   const { data } = postsClient.getPosts.useQuery(['posts'], {

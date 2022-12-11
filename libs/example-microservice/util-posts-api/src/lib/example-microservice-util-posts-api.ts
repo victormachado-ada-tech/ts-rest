@@ -24,7 +24,8 @@ export const postsApi = c.router({
     method: 'GET',
     path: '/posts',
     query: z.object({
-      userId: z.number().optional(),
+      skip: z.number().optional(),
+      take: z.number().optional(),
     }),
     responses: {
       200: z.array(PostSchema),
@@ -33,7 +34,25 @@ export const postsApi = c.router({
       }),
     },
   },
-
+  createPost: {
+    method: 'POST',
+    path: '/posts',
+    body: c.body<{
+      title: string;
+      content: string;
+    }>(),
+    responses: {
+      201: PostSchema,
+    },
+  },
+  getPost: {
+    method: 'GET',
+    path: '/posts/:id',
+    query: null,
+    responses: {
+      200: PostSchema.nullable(),
+    },
+  },
   updatePostThumbnail: {
     method: 'POST',
     path: '/posts/:id/thumbnail',

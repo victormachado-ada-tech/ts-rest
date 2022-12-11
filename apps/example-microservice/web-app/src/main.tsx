@@ -1,10 +1,10 @@
-import React from 'react';
-import { App } from './App';
-import { createRoot } from 'react-dom/client';
-import { initQueryClient } from '@ts-rest/react-query';
-import { postsApi } from '@ts-rest/example-microservice/util-posts-api';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { postsApi } from '@ts-rest/example-microservice/util-posts-api';
+import { initQueryClient } from '@ts-rest/react-query';
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import { App } from './App';
 
 export const postsClient = initQueryClient(postsApi, {
   baseHeaders: {},
