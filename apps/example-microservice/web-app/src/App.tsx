@@ -33,6 +33,8 @@ experimentalClient.updatePostThumbnail(
   }
 );
 
+experimentalClient.deletePost(`/posts/${123}`, 'DELETE');
+
 export const App = () => {
   const { data } = postsClient.getPosts.useQuery(['posts'], {
     query: {},

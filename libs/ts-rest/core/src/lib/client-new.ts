@@ -3,7 +3,7 @@ import { AppRoute, AppRouteMutation, AppRouteQuery, AppRouter } from './dsl';
 import { insertParamsIntoPath, ParamsFromUrl, PathToTemplate } from './paths';
 import { convertQueryParamsToUrlString } from './query';
 import { HTTPStatusCode } from './status-codes';
-import { ZodInferOrType } from './type-utils';
+import { AreAllPropertiesOptional, ZodInferOrType } from './type-utils';
 
 type RecursiveProxyObj<T extends AppRouter> = {
   [TKey in keyof T]: T[TKey] extends AppRoute
@@ -80,21 +80,28 @@ type QueryOptions<TRoute extends AppRoute> = TRoute extends AppRouteMutation
       extraHeaders?: Record<string, string>;
     };
 
-type DataReturnMutation<TRoute extends AppRouteMutation> =
-  TRoute['body'] extends null | undefined
-    ? DataReturnMutationNoBody<TRoute>
-    : DataReturnMutationWithBody<TRoute>;
-
-type DataReturnQueryWithQuery<TRoute extends AppRouteQuery> = (
-  path: PathToTemplate<TRoute['path']>,
-  query: AppRouteMutationType<TRoute['query']>,
-  options?: QueryOptions<TRoute>
-) => Promise<ApiRouteResponse<TRoute['responses']>>;
+type DataReturnQueryWithQuery<TRoute extends AppRouteQuery> =
+  AreAllPropertiesOptional<AppRouteMutationType<TRoute['query']>> extends true
+    ? (
+        path: PathToTemplate<TRoute['path']>,
+        query?: AppRouteMutationType<TRoute['query']>,
+        options?: QueryOptions<TRoute>
+      ) => Promise<ApiRouteResponse<TRoute['responses']>>
+    : (
+        path: PathToTemplate<TRoute['path']>,
+        query: AppRouteMutationType<TRoute['query']>,
+        options?: QueryOptions<TRoute>
+      ) => Promise<ApiRouteResponse<TRoute['responses']>>;
 
 type DataReturnQueryNoQuery<TRoute extends AppRouteQuery> = (
   path: PathToTemplate<TRoute['path']>,
   options?: QueryOptions<TRoute>
 ) => Promise<ApiRouteResponse<TRoute['responses']>>;
+
+type DataReturnMutation<TRoute extends AppRouteMutation> =
+  TRoute['body'] extends null | undefined
+    ? DataReturnMutationNoBody<TRoute>
+    : DataReturnMutationWithBody<TRoute>;
 
 type DataReturnMutationWithBody<TRoute extends AppRouteMutation> =
   TRoute['contentType'] extends string
@@ -103,6 +110,15 @@ type DataReturnMutationWithBody<TRoute extends AppRouteMutation> =
         method: TRoute['method'],
         body: AppRouteBodyOrFormData<TRoute>,
         options: QueryOptions<TRoute>
+      ) => Promise<ApiRouteResponse<TRoute['responses']>>
+    : AreAllPropertiesOptional<
+        AppRouteMutationType<TRoute['query']>
+      > extends true
+    ? (
+        path: PathToTemplate<TRoute['path']>,
+        method: TRoute['method'],
+        body?: AppRouteBodyOrFormData<TRoute>,
+        options?: QueryOptions<TRoute>
       ) => Promise<ApiRouteResponse<TRoute['responses']>>
     : (
         path: PathToTemplate<TRoute['path']>,

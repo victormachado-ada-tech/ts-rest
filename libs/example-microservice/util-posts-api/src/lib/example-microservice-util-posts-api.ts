@@ -48,9 +48,18 @@ export const postsApi = c.router({
   getPost: {
     method: 'GET',
     path: '/posts/:id',
-    query: null,
     responses: {
       200: PostSchema.nullable(),
+    },
+  },
+  deletePost: {
+    method: 'DELETE',
+    path: '/posts/:id',
+    body: null,
+    responses: {
+      200: z.object({
+        message: z.string(),
+      }),
     },
   },
   updatePostThumbnail: {
