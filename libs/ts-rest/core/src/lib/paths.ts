@@ -22,20 +22,6 @@ type RecursivelyExtractPathParams<
   : TAcc;
 
 /**
- * Converts a path (with params) to a template string
- * @param S - The URL e.g. /posts/:id
- * @returns - The URL with the params e.g. /posts/${string}
- */
-export type PathToTemplate<S extends string> =
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  S extends `${infer L}/:${infer _P}/${infer R}`
-    ? PathToTemplate<`${L}/${string}${R}`>
-    : // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    S extends `${infer L}/:${infer _R}`
-    ? PathToTemplate<`${L}/${string}`>
-    : S;
-
-/**
  * Extract path params from path function
  *
  * { id: string, commentId: string }

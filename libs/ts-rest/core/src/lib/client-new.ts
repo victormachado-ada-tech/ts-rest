@@ -1,19 +1,120 @@
 import { z, ZodTypeAny } from 'zod';
-import { AppRoute, AppRouteMutation, AppRouteQuery, AppRouter } from './dsl';
-import { insertParamsIntoPath, ParamsFromUrl, PathToTemplate } from './paths';
+import {
+  AppRoute,
+  AppRouteMutation,
+  AppRouteQuery,
+  AppRouter,
+  initContract,
+} from './dsl';
+import { insertParamsIntoPath, ParamsFromUrl } from './paths';
 import { convertQueryParamsToUrlString } from './query';
 import { HTTPStatusCode } from './status-codes';
 import { AreAllPropertiesOptional, ZodInferOrType } from './type-utils';
 
+const c = initContract();
+
+const test = c.router({
+  healthCheck: {
+    method: 'GET',
+    path: '/healthCheck',
+    responses: {
+      200: z.array(
+        z.object({
+          id: z.string(),
+          name: z.string(),
+        })
+      ),
+    },
+  },
+});
+
+const api = c.router({
+  test,
+  getUserRPCStyle: {
+    method: 'GET',
+    path: '/getUserRPCStyle',
+    query: z.object({
+      id: z.string(),
+      optionalQuery: z.string().optional(),
+    }),
+    responses: {
+      200: z.object({
+        id: z.string(),
+        name: z.string(),
+      }),
+    },
+  },
+  getUser: {
+    method: 'GET',
+    path: '/users/:id',
+    query: z.object({
+      optionalQuery: z.string().optional(),
+    }),
+    responses: {
+      200: z.object({
+        id: z.string(),
+        name: z.string(),
+      }),
+    },
+  },
+  getUsers: {
+    method: 'GET',
+    path: '/getUsers',
+    query: z.object({
+      requiredQuery: z.string(),
+    }),
+    responses: {
+      200: z.array(
+        z.object({
+          id: z.string(),
+          name: z.string(),
+        })
+      ),
+    },
+  },
+});
+
 type RecursiveProxyObj<T extends AppRouter> = {
   [TKey in keyof T]: T[TKey] extends AppRoute
-    ? DataReturn<T[TKey]>
+    ? DataReturn<T[TKey], TKey extends string ? TKey : never>
     : T[TKey] extends AppRouter
     ? RecursiveProxyObj<T[TKey]>
     : never;
 };
 
 type AppRouteMutationType<T> = T extends ZodTypeAny ? z.input<T> : T;
+
+type AllAvailablePaths<T extends AppRouter> = {
+  [TKey in keyof T]: T[TKey] extends AppRoute
+    ? T[TKey]['path']
+    : T[TKey] extends AppRouter
+    ? AllAvailablePaths<T[TKey]>
+    : never;
+}[keyof T];
+
+type ProxyObjTest = RecursiveProxyObj<typeof api>;
+
+const proxyObjTest = undefined as unknown as ProxyObjTest;
+
+type QueryClientPathMode<T extends AppRouter> = (
+  path: AllAvailablePaths<T>
+) => undefined;
+
+const queryClientPathMode = (path: AllAvailablePaths<typeof api>) => {
+  return undefined;
+};
+
+proxyObjTest.getUsers({ requiredQuery: 'Required' });
+
+queryClientPathMode('/getUsers');
+
+proxyObjTest.getUsers({ requiredQuery: 'Olly' });
+
+proxyObjTest.getUserRPCStyle({ id: '123' });
+
+proxyObjTest.getUser('/users/:id', { id: '123' });
+
+proxyObjTest.test.healthCheck();
 
 /**
  * Extract the path params from the path in the contract
@@ -55,10 +156,13 @@ type ApiRouteResponse<T> =
 /**
  * Returned from a mutation or query call
  */
-type DataReturn<TRoute extends AppRoute> = TRoute extends AppRouteQuery
-  ? DataReturnQueryWithQuery<TRoute>
+type DataReturn<
+  TRoute extends AppRoute,
+  TAppRouteKey extends string
+> = TRoute extends AppRouteQuery
+  ? QueryClientArgsQuery<TRoute, TAppRouteKey>
   : TRoute extends AppRouteMutation
-  ? DataReturnMutationWithBody<TRoute>
+  ? QueryClientArgsMutation<TRoute, TAppRouteKey>
   : never;
 
 type QueryOptions<TRoute extends AppRoute> = TRoute extends AppRouteMutation
@@ -74,42 +178,78 @@ type QueryOptions<TRoute extends AppRoute> = TRoute extends AppRouteMutation
       extraHeaders?: Record<string, string>;
     };
 
-type DataReturnQueryWithQuery<TRoute extends AppRouteQuery> =
-  AreAllPropertiesOptional<AppRouteMutationType<TRoute['query']>> extends true
-    ? (
-        path: PathToTemplate<TRoute['path']>,
-        query?: AppRouteMutationType<TRoute['query']>,
-        options?: QueryOptions<TRoute>
-      ) => Promise<ApiRouteResponse<TRoute['responses']>>
-    : (
-        path: PathToTemplate<TRoute['path']>,
-        query: AppRouteMutationType<TRoute['query']>,
-        options?: QueryOptions<TRoute>
-      ) => Promise<ApiRouteResponse<TRoute['responses']>>;
+/**
+ * Combination of query params and path params
+ */
+type QueryClientParams<TRoute extends AppRoute> = ParamsFromUrl<
+  TRoute['path']
+> extends undefined
+  ? AppRouteMutationType<TRoute['query']>
+  : ParamsFromUrl<TRoute['path']> & AppRouteMutationType<TRoute['query']>;
 
-type DataReturnMutationWithBody<TRoute extends AppRouteMutation> =
-  TRoute['contentType'] extends string
-    ? (
-        path: PathToTemplate<TRoute['path']>,
-        method: TRoute['method'],
-        body: AppRouteBodyOrFormData<TRoute>,
-        options: QueryOptions<TRoute>
-      ) => Promise<ApiRouteResponse<TRoute['responses']>>
-    : AreAllPropertiesOptional<
-        AppRouteMutationType<TRoute['query']>
-      > extends true
-    ? (
-        path: PathToTemplate<TRoute['path']>,
-        method: TRoute['method'],
-        body?: AppRouteBodyOrFormData<TRoute>,
-        options?: QueryOptions<TRoute>
-      ) => Promise<ApiRouteResponse<TRoute['responses']>>
-    : (
-        path: PathToTemplate<TRoute['path']>,
-        method: TRoute['method'],
-        body: AppRouteBodyOrFormData<TRoute>,
-        options?: QueryOptions<TRoute>
-      ) => Promise<ApiRouteResponse<TRoute['responses']>>;
+/**
+ * Combination of body and path params
+ */
+type MutationClientParams<TRoute extends AppRouteMutation> = ParamsFromUrl<
+  TRoute['path']
+> extends undefined
+  ? AppRouteBodyOrFormData<TRoute>
+  : ParamsFromUrl<TRoute['path']> & AppRouteBodyOrFormData<TRoute>;
+
+type QueryClientArgsQuery<
+  TRoute extends AppRouteQuery,
+  ProxyAccessPath extends string
+> =
+  // if the proxy access path is the same as the path, remove the path requirement
+  TRoute['path'] extends `/${infer TPath}`
+    ? TPath extends ProxyAccessPath
+      ? // Do we need query params
+        AreAllPropertiesOptional<QueryClientParams<TRoute>> extends true
+        ? (
+            params?: QueryClientParams<TRoute>,
+            options?: QueryOptions<TRoute>
+          ) => Promise<ApiRouteResponse<TRoute['responses']>>
+        : (
+            params: QueryClientParams<TRoute>,
+            options?: QueryOptions<TRoute>
+          ) => Promise<ApiRouteResponse<TRoute['responses']>>
+      : // We do need query params
+      AreAllPropertiesOptional<QueryClientParams<TRoute>> extends true
+      ? (
+          path: TRoute['path'],
+          params?: QueryClientParams<TRoute>,
+          options?: QueryOptions<TRoute>
+        ) => Promise<ApiRouteResponse<TRoute['responses']>>
+      : (
+          path: TRoute['path'],
+          params: QueryClientParams<TRoute>,
+          options?: QueryOptions<TRoute>
+        ) => Promise<ApiRouteResponse<TRoute['responses']>>
+    : never;
+
+type QueryClientArgsMutation<
+  TRoute extends AppRouteMutation,
+  TAppRouteKey extends string
+> = TRoute['contentType'] extends string
+  ? (
+      path: TRoute['path'],
+      method: TRoute['method'],
+      paramsAndBody: MutationClientParams<TRoute>,
+      options: QueryOptions<TRoute>
+    ) => Promise<ApiRouteResponse<TRoute['responses']>>
+  : AreAllPropertiesOptional<AppRouteMutationType<TRoute['query']>> extends true
+  ? (
+      path: TRoute['path'],
+      method: TRoute['method'],
+      paramsAndBody?: MutationClientParams<TRoute>,
+      options?: QueryOptions<TRoute>
+    ) => Promise<ApiRouteResponse<TRoute['responses']>>
+  : (
+      path: TRoute['path'],
+      method: TRoute['method'],
+      paramsAndBody: MutationClientParams<TRoute>,
+      options?: QueryOptions<TRoute>
+    ) => Promise<ApiRouteResponse<TRoute['responses']>>;
 
 interface ClientArgs {
   baseUrl: string;

@@ -17,7 +17,7 @@ experimentalClient.getPosts('/posts', {
 });
 
 // GET (with params)
-experimentalClient.getPost(`/posts/${123}`);
+experimentalClient.getPost('/posts/:id', { id: '123' });
 
 // POST w/ body
 experimentalClient.createPost('/posts', 'POST', {
@@ -27,9 +27,10 @@ experimentalClient.createPost('/posts', 'POST', {
 
 // POST w/ body and multipart/form-data
 experimentalClient.updatePostThumbnail(
-  `/posts/${123}/thumbnail`,
+  '/posts/:id/thumbnail',
   'POST',
   {
+    id: '123',
     thumbnail: new File([], 'test.png'),
     data: 'Hey there!',
   },
@@ -39,7 +40,7 @@ experimentalClient.updatePostThumbnail(
 );
 
 // DELETE (no body)
-experimentalClient.deletePost(`/posts/${123}`, 'DELETE');
+experimentalClient.deletePost('/posts/:id', 'DELETE');
 
 export const App = () => {
   const { data } = postsClient.getPosts.useQuery(['posts'], {
