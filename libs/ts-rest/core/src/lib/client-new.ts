@@ -56,16 +56,10 @@ type ApiRouteResponse<T> =
  * Returned from a mutation or query call
  */
 type DataReturn<TRoute extends AppRoute> = TRoute extends AppRouteQuery
-  ? DataReturnQuery<TRoute>
+  ? DataReturnQueryWithQuery<TRoute>
   : TRoute extends AppRouteMutation
-  ? DataReturnMutation<TRoute>
+  ? DataReturnMutationWithBody<TRoute>
   : never;
-
-type DataReturnQuery<TRoute extends AppRouteQuery> = TRoute['query'] extends
-  | null
-  | undefined
-  ? DataReturnQueryNoQuery<TRoute>
-  : DataReturnQueryWithQuery<TRoute>;
 
 type QueryOptions<TRoute extends AppRoute> = TRoute extends AppRouteMutation
   ? TRoute['contentType'] extends string
@@ -93,16 +87,6 @@ type DataReturnQueryWithQuery<TRoute extends AppRouteQuery> =
         options?: QueryOptions<TRoute>
       ) => Promise<ApiRouteResponse<TRoute['responses']>>;
 
-type DataReturnQueryNoQuery<TRoute extends AppRouteQuery> = (
-  path: PathToTemplate<TRoute['path']>,
-  options?: QueryOptions<TRoute>
-) => Promise<ApiRouteResponse<TRoute['responses']>>;
-
-type DataReturnMutation<TRoute extends AppRouteMutation> =
-  TRoute['body'] extends null | undefined
-    ? DataReturnMutationNoBody<TRoute>
-    : DataReturnMutationWithBody<TRoute>;
-
 type DataReturnMutationWithBody<TRoute extends AppRouteMutation> =
   TRoute['contentType'] extends string
     ? (
@@ -126,12 +110,6 @@ type DataReturnMutationWithBody<TRoute extends AppRouteMutation> =
         body: AppRouteBodyOrFormData<TRoute>,
         options?: QueryOptions<TRoute>
       ) => Promise<ApiRouteResponse<TRoute['responses']>>;
-
-type DataReturnMutationNoBody<TRoute extends AppRouteMutation> = (
-  path: PathToTemplate<TRoute['path']>,
-  method: TRoute['method'],
-  options?: QueryOptions<TRoute>
-) => Promise<ApiRouteResponse<TRoute['responses']>>;
 
 interface ClientArgs {
   baseUrl: string;

@@ -8,19 +8,24 @@ const experimentalClient = initClientNew<typeof postsApi>({
   baseUrl: 'http://localhost:5003',
 });
 
+// GET (optional query)
 experimentalClient.getPosts('/posts');
 
+// GEt (with query)
 experimentalClient.getPosts('/posts', {
   skip: 0,
 });
 
+// GET (with params)
+experimentalClient.getPost(`/posts/${123}`);
+
+// POST w/ body
 experimentalClient.createPost('/posts', 'POST', {
   title: 'Hello World!',
   content: 'This is a post!',
 });
 
-experimentalClient.getPost(`/posts/${123}`);
-
+// POST w/ body and multipart/form-data
 experimentalClient.updatePostThumbnail(
   `/posts/${123}/thumbnail`,
   'POST',
@@ -33,6 +38,7 @@ experimentalClient.updatePostThumbnail(
   }
 );
 
+// DELETE (no body)
 experimentalClient.deletePost(`/posts/${123}`, 'DELETE');
 
 export const App = () => {
